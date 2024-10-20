@@ -37,8 +37,8 @@ app.frame('/', (c) => {
   return c.res({
     image: (
       <FrameImage>
-        <h1 style={{ fontSize: '48px', marginBottom: '20px' }}>Livepeer AI Frame</h1>
-        <p style={{ fontSize: '24px' }}>Enter a prompt to generate or transform an image</p>
+        <h1 style={{ fontSize: '64px', marginBottom: '24px' }}>Livepeer AI Frame</h1>
+        <p style={{ fontSize: '32px' }}>Enter a prompt to generate or transform an image</p>
       </FrameImage>
     ),
     intents: [
