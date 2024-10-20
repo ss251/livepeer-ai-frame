@@ -112,10 +112,10 @@ app.frame('/generate', async (c) => {
     return c.res({
       image: imageUrl,
       intents: [
-        <Button action="/">Generate Another</Button>,
-        <Button action="/transform" value={imageUrl}>Transform This Image</Button>,
-        <Button action="/image-to-video" value={imageUrl}>Generate Video</Button>,
-        <Button.Link href={imageUrl}>↗️ View Image</Button.Link>,
+        <Button action="/">Anotha One ⚡️</Button>,
+        <Button action="/transform" value={imageUrl}>Transform 🔥</Button>,
+        <Button action="/image-to-video" value={imageUrl}>Video 🎥</Button>,
+        <Button.Link href={imageUrl}>↗️ View Image 🖼️</Button.Link>,
       ],
     })
   } catch (error) {
@@ -164,8 +164,8 @@ app.frame('/transform', async (c) => {
     image: imageUrl,
     intents: [
       <TextInput placeholder="Enter transformation prompt..." />,
-      <Button action="/do-transform" value={imageUrl}>Transform</Button>,
-      <Button action="/">Cancel</Button>,
+      <Button action="/do-transform" value={imageUrl}>Transform 🔥</Button>,
+      <Button action="/">Cancel ❌</Button>,
     ],
   })
 })
@@ -211,9 +211,9 @@ app.frame('/do-transform', async (c) => {
       image: transformedImageUrl,
       intents: [
         <Button action="/">Generate New Image</Button>,
-        <Button action="/transform" value={transformedImageUrl}>Transform Again</Button>,
-        <Button action="/image-to-video" value={transformedImageUrl}>Generate Video</Button>,
-        <Button.Link href={transformedImageUrl}>↗️ View Image</Button.Link>,
+        <Button action="/transform" value={transformedImageUrl}>Anotha One 🔥</Button>,
+        <Button action="/image-to-video" value={transformedImageUrl}>Video 🎥</Button>,
+        <Button.Link href={transformedImageUrl}>↗️ View Image 🖼️</Button.Link>,
       ],
     })
   } catch (error) {
