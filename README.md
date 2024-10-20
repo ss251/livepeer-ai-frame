@@ -26,8 +26,8 @@ Live demo [here](https://warpcast.com/thescoho.eth/0x82bb3ea8) (on Warpcast)
    NEYNAR_API_KEY=your_neynar_api_key or NEYNAR_FROG_FM
    ```
 
-  Get Livepeer API key from [Livepeer Studio](https://livepeer.studio)
-  Get Neynar API key from [Neynar](https://neynar.com)
+  - Get Livepeer API key from [Livepeer Studio](https://livepeer.studio)
+  - Get Neynar API key from [Neynar](https://neynar.com)
 
 3. Run the development server:
    ```
