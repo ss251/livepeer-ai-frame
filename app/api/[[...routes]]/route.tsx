@@ -5,7 +5,6 @@ import { handle } from 'frog/next'
 import { neynar } from 'frog/hubs'
 import { devtools } from 'frog/dev'
 import { serveStatic } from 'frog/serve-static'
-
 const app = new Frog({
   assetsPath: '/',
   basePath: '/api',
@@ -32,6 +31,16 @@ const FrameImage = ({ children }: { children: React.ReactNode }) => (
     {children}
   </div>
 )
+
+const LoadingFrame = (message: string) => (
+  <FrameImage>
+    <h2 style={{ fontSize: '36px', marginBottom: '20px' }}>{message}</h2>
+    <p style={{ fontSize: '24px' }}>This may take a moment. Click the button below to check the status.</p>
+  </FrameImage>
+);
+
+// Modify the pendingOperations type
+const pendingOperations = new Map<string, { promise: Promise<any>, completed: boolean }>();
 
 app.frame('/', (c) => {
   return c.res({
@@ -184,51 +193,93 @@ app.frame('/do-transform', async (c) => {
     })
   }
 
-  try {
-    const imageResponse = await fetch(imageUrl);
-    const imageBlob = await imageResponse.blob();
-    const formData = new FormData();
-    formData.append('prompt', prompt);
-    formData.append('image', imageBlob, 'image.png');
-    formData.append('model_id', 'timbrooks/instruct-pix2pix');
+  const operationId = `transform_${Date.now()}`
+  
+  // Start the transformation process
+  const operation = transformImage(imageUrl, prompt);
+  pendingOperations.set(operationId, { promise: operation, completed: false });
 
-    const response = await fetch('https://dream-gateway.livepeer.cloud/image-to-image', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.LIVEPEER_AI_API_KEY}`,
-      },
-      body: formData,
-    });
+  operation.then(() => {
+    const op = pendingOperations.get(operationId);
+    if (op) op.completed = true;
+  }).catch(() => {
+    pendingOperations.delete(operationId);
+  });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+  return c.res({
+    image: LoadingFrame("Transforming Image..."),
+    intents: [
+      <Button action="/check-transform" value={operationId}>Check Status</Button>,
+      <Button action="/">Cancel</Button>,
+    ],
+  })
+})
 
-    const result = await response.json() as { images: { url: string }[] };
-    const transformedImageUrl = result.images[0].url;
+app.frame('/check-transform', async (c) => {
+  const operationId = c.buttonValue as string
+  const operation = pendingOperations.get(operationId)
 
-    return c.res({
-      image: transformedImageUrl,
-      intents: [
-        <Button action="/">Generate New Image</Button>,
-        <Button action="/transform" value={transformedImageUrl}>Anotha One 🔥</Button>,
-        <Button action="/image-to-video" value={transformedImageUrl}>Video 🎥</Button>,
-        <Button.Link href={transformedImageUrl}>↗️ View Image 🖼️</Button.Link>,
-      ],
-    })
-  } catch (error) {
-    console.error('Error transforming image:', error);
+  if (!operation) {
     return c.res({
       image: (
         <FrameImage>
-          <h2 style={{ fontSize: '36px', marginBottom: '20px' }}>Error transforming image</h2>
-          <p style={{ fontSize: '24px' }}>{error instanceof Error ? error.message : 'Unknown error'}</p>
+          <h2 style={{ fontSize: '36px', marginBottom: '20px' }}>Operation not found. Please try again.</h2>
         </FrameImage>
       ),
-      intents: [<Button action="/">Try Again</Button>],
+      intents: [<Button action="/">Back to Start</Button>],
+    })
+  }
+
+  // Check if the operation has completed
+  if (operation.completed) {
+    const result = await operation.promise;
+    pendingOperations.delete(operationId);
+
+    return c.res({
+      image: result.transformedImageUrl,
+      intents: [
+        <Button action="/">Generate New Image</Button>,
+        <Button action="/transform" value={result.transformedImageUrl}>Anotha One 🔥</Button>,
+        <Button action="/image-to-video" value={result.transformedImageUrl}>Video 🎥</Button>,
+        <Button.Link href={result.transformedImageUrl}>↗️ View Image 🖼️</Button.Link>,
+      ],
+    })
+  } else {
+    // Operation is still pending
+    return c.res({
+      image: LoadingFrame("Still processing..."),
+      intents: [
+        <Button action="/check-transform" value={operationId}>Check Again</Button>,
+        <Button action="/">Cancel</Button>,
+      ],
     })
   }
 })
+
+// Add this function to handle the image transformation
+async function transformImage(imageUrl: string, prompt: string) {
+  const imageResponse = await fetch(imageUrl);
+  const imageBlob = await imageResponse.blob();
+  const formData = new FormData();
+  formData.append('prompt', prompt);
+  formData.append('image', imageBlob, 'image.png');
+  formData.append('model_id', 'timbrooks/instruct-pix2pix');
+
+  const response = await fetch('https://dream-gateway.livepeer.cloud/image-to-image', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.LIVEPEER_AI_API_KEY}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const result = await response.json() as { images: { url: string }[] };
+  return { transformedImageUrl: result.images[0].url };
+}
 
 app.frame('/image-to-video', async (c) => {
   const imageUrl = c.buttonValue
@@ -243,27 +294,47 @@ app.frame('/image-to-video', async (c) => {
     })
   }
 
-  try {
-    const imageResponse = await fetch(imageUrl);
-    const imageBlob = await imageResponse.blob();
-    const formData = new FormData();
-    formData.append('image', imageBlob, 'image.png');
-    formData.append('model_id', 'stabilityai/stable-video-diffusion-img2vid-xt-1-1');
+  const operationId = `video_${Date.now()}`
+  
+  // Start the video generation process
+  const operation = generateVideo(imageUrl);
+  pendingOperations.set(operationId, { promise: operation, completed: false });
 
-    const response = await fetch('https://dream-gateway.livepeer.cloud/image-to-video', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.LIVEPEER_AI_API_KEY}`,
-      },
-      body: formData,
-    });
+  operation.then(() => {
+    const op = pendingOperations.get(operationId);
+    if (op) op.completed = true;
+  }).catch(() => {
+    pendingOperations.delete(operationId);
+  });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+  return c.res({
+    image: LoadingFrame("Generating Video..."),
+    intents: [
+      <Button action="/check-video" value={operationId}>Check Status</Button>,
+      <Button action="/">Cancel</Button>,
+    ],
+  })
+})
 
-    const result = await response.json() as { images: { url: string }[] };
-    const videoUrl = result.images[0].url;
+app.frame('/check-video', async (c) => {
+  const operationId = c.buttonValue as string
+  const operation = pendingOperations.get(operationId)
+
+  if (!operation) {
+    return c.res({
+      image: (
+        <FrameImage>
+          <h2 style={{ fontSize: '36px', marginBottom: '20px' }}>Operation not found. Please try again.</h2>
+        </FrameImage>
+      ),
+      intents: [<Button action="/">Back to Start</Button>],
+    })
+  }
+
+  // Check if the operation has completed
+  if (operation.completed) {
+    const result = await operation.promise;
+    pendingOperations.delete(operationId);
 
     return c.res({
       image: (
@@ -273,23 +344,45 @@ app.frame('/image-to-video', async (c) => {
       ),
       intents: [
         <Button action="/">Generate New Image</Button>,
-        <Button action="/image-to-video" value={imageUrl}>Generate Another Video</Button>,
-        <Button.Link href={videoUrl}>↗️ View Video</Button.Link>,
+        <Button action="/image-to-video" value={result.imageUrl}>Generate Another Video</Button>,
+        <Button.Link href={result.videoUrl}>↗️ View Video</Button.Link>,
       ],
     })
-  } catch (error) {
-    console.error('Error generating video:', error);
+  } else {
+    // Operation is still pending
     return c.res({
-      image: (
-        <FrameImage>
-          <h2 style={{ fontSize: '36px', marginBottom: '20px' }}>Error generating video</h2>
-          <p style={{ fontSize: '24px' }}>{error instanceof Error ? error.message : 'Unknown error'}</p>
-        </FrameImage>
-      ),
-      intents: [<Button action="/">Try Again</Button>],
+      image: LoadingFrame("Still processing..."),
+      intents: [
+        <Button action="/check-video" value={operationId}>Check Again</Button>,
+        <Button action="/">Cancel</Button>,
+      ],
     })
   }
 })
+
+// Add this function to handle the video generation
+async function generateVideo(imageUrl: string) {
+  const imageResponse = await fetch(imageUrl);
+  const imageBlob = await imageResponse.blob();
+  const formData = new FormData();
+  formData.append('image', imageBlob, 'image.png');
+  formData.append('model_id', 'stabilityai/stable-video-diffusion-img2vid-xt-1-1');
+
+  const response = await fetch('https://dream-gateway.livepeer.cloud/image-to-video', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.LIVEPEER_AI_API_KEY}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const result = await response.json() as { images: { url: string }[] };
+  return { videoUrl: result.images[0].url, imageUrl };
+}
 
 if (process.env.NODE_ENV === 'development') {
   devtools(app, { serveStatic })
@@ -310,6 +403,8 @@ export const POST = handle(app)
 // ```ts
 // devtools(app, { assetsPath: '/.frog' })
 // ```
+
+
 
 
 
