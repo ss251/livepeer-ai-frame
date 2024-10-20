@@ -5,7 +5,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Livepeer AI Frmae',
+  title: 'Livepeer AI Frame',
   description: 'Generate content powered by Livepeer AI',
 }
 
